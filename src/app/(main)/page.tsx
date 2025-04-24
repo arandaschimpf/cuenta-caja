@@ -17,19 +17,16 @@ export default function CajaPage() {
   };
 
   const handleSave = () => {
-    const newSavedCounts = { ...savedCounts };
-    if (count > 0) {
-      newSavedCounts[currentDenomination] = count;
-    } else {
-      delete newSavedCounts[currentDenomination];
-    }
+    const newSavedCounts = { ...savedCounts, [currentDenomination]: count };
     setSavedCounts(newSavedCounts);
 
     if (currentDenominationIndex === denominations.length - 1) {
       setCompleted(true);
     } else {
+      setCount(
+        newSavedCounts[denominations[currentDenominationIndex + 1]] ?? 0
+      );
       setCurrentDenominationIndex(currentDenominationIndex + 1);
-      setCount(0);
     }
   };
 
