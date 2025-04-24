@@ -20,6 +20,8 @@ export default function CajaPage() {
     const newSavedCounts = { ...savedCounts };
     if (count > 0) {
       newSavedCounts[currentDenomination] = count;
+    } else {
+      delete newSavedCounts[currentDenomination];
     }
     setSavedCounts(newSavedCounts);
 
