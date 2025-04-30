@@ -25,7 +25,7 @@ export default function CajaPage() {
     if (savedHistory) {
       try {
         setHistory(JSON.parse(savedHistory));
-      } catch (e) {
+      } catch {
         console.error("Failed to parse history from localStorage");
       }
     }
@@ -88,7 +88,7 @@ export default function CajaPage() {
   };
 
   return (
-    <div className="flex flex-col min-h-screen p-4 max-w-md mx-auto">
+    <div className="flex flex-col p-4 max-w-md mx-auto">
       <h1 className="text-2xl font-bold text-center mb-6 text-primary">
         Cash Counter
       </h1>
