@@ -1,7 +1,11 @@
 "use client";
 
 import Button from "@/components/Button";
-import { useState } from "react";
+import DenominationCounter from "@/components/caja/DenominationCounter";
+import SavedDenominations from "@/components/caja/SavedDenominations";
+import TotalSummary from "@/components/caja/TotalSummary";
+import HistoryModal, { HistoryEntry } from "@/components/caja/HistoryModal";
+import { useEffect, useState } from "react";
 
 export default function CajaPage() {
   const denominations = [20000, 10000, 2000, 1000, 500, 200, 100, 50, 20, 10];
@@ -9,8 +13,23 @@ export default function CajaPage() {
   const [count, setCount] = useState(0);
   const [savedCounts, setSavedCounts] = useState<Record<number, number>>({});
   const [completed, setCompleted] = useState(false);
+  const [history, setHistory] = useState<HistoryEntry[]>([]);
+  const [showHistoryModal, setShowHistoryModal] = useState(false);
+  const [openCollapsible, setOpenCollapsible] = useState<number | null>(null);
 
   const currentDenomination = denominations[currentDenominationIndex];
+
+  // Load history from localStorage on component mount
+  useEffect(() => {
+    const savedHistory = localStorage.getItem("countHistory");
+    if (savedHistory) {
+      try {
+        setHistory(JSON.parse(savedHistory));
+      } catch (e) {
+        console.error("Failed to parse history from localStorage");
+      }
+    }
+  }, []);
 
   const handleIncrement = (value: number) => {
     setCount((count) => Math.max(count + value, 0));
@@ -30,6 +49,21 @@ export default function CajaPage() {
     }
   };
 
+  const saveToHistory = () => {
+    const total = calculateTotal();
+    const newEntry: HistoryEntry = {
+      date: new Date().toLocaleString(),
+      total,
+      counts: { ...savedCounts },
+    };
+
+    // Keep only the most recent 10 entries
+    const updatedHistory = [newEntry, ...history].slice(0, 10);
+    setHistory(updatedHistory);
+    localStorage.setItem("countHistory", JSON.stringify(updatedHistory));
+    handleReset();
+  };
+
   const handleReset = () => {
     setCurrentDenominationIndex(0);
     setCount(0);
@@ -43,6 +77,16 @@ export default function CajaPage() {
     }, 0);
   };
 
+  const handleEdit = (denomination: number, count: number) => {
+    setCurrentDenominationIndex(denominations.indexOf(denomination));
+    setCount(count);
+    setCompleted(false);
+  };
+
+  const toggleCollapsible = (index: number) => {
+    setOpenCollapsible(openCollapsible === index ? null : index);
+  };
+
   return (
     <div className="flex flex-col min-h-screen p-4 max-w-md mx-auto">
       <h1 className="text-2xl font-bold text-center mb-6 text-primary">
@@ -51,91 +95,42 @@ export default function CajaPage() {
 
       <div className="flex-1 space-y-4">
         {!completed && (
-          <div className="bg-background shadow-md rounded-xl p-5 border border-secondary/10">
-            <div className="flex justify-between items-center mb-4">
-              <span className="text-xl font-bold">
-                {count} x ${currentDenomination.toLocaleString()}
-              </span>
-              <Button variant="success" size="sm" onClick={handleSave}>
-                Save
-              </Button>
-            </div>
-            <div className="grid grid-cols-3 gap-2 sm:gap-3">
-              <Button variant="primary" onClick={() => handleIncrement(10)}>
-                +10
-              </Button>
-              <Button variant="primary" onClick={() => handleIncrement(5)}>
-                +5
-              </Button>
-              <Button variant="primary" onClick={() => handleIncrement(1)}>
-                +1
-              </Button>
-              <Button variant="secondary" onClick={() => handleIncrement(-1)}>
-                -1
-              </Button>
-              <Button variant="secondary" onClick={() => handleIncrement(-5)}>
-                -5
-              </Button>
-              <Button variant="secondary" onClick={() => handleIncrement(-10)}>
-                -10
-              </Button>
-            </div>
-          </div>
+          <DenominationCounter
+            count={count}
+            currentDenomination={currentDenomination}
+            onIncrement={handleIncrement}
+            onSave={handleSave}
+          />
         )}
 
         {Object.keys(savedCounts).length > 0 && (
-          <div className="bg-background shadow-md rounded-xl p-5 border border-secondary/10">
-            <h2 className="text-lg font-semibold mb-3 text-secondary">
-              Saved Denominations
-            </h2>
-            <div className="space-y-3">
-              {Object.entries(savedCounts)
-                .sort(([a], [b]) => Number(b) - Number(a))
-                .map(([denom, count]) => (
-                  <div
-                    key={denom}
-                    className="flex justify-between items-center p-2 rounded-lg bg-secondary/5 hover:bg-secondary/10 transition-colors"
-                  >
-                    <span className="font-medium">
-                      {count} x ${Number(denom).toLocaleString()}
-                    </span>
-                    <Button
-                      variant="secondary"
-                      size="sm"
-                      onClick={() => {
-                        setCurrentDenominationIndex(
-                          denominations.indexOf(Number(denom))
-                        );
-                        setCount(count);
-                        setCompleted(false);
-                      }}
-                    >
-                      Edit
-                    </Button>
-                  </div>
-                ))}
-            </div>
-          </div>
+          <SavedDenominations savedCounts={savedCounts} onEdit={handleEdit} />
         )}
 
-        <div className="bg-background shadow-md rounded-xl p-5 border border-secondary/10 mt-auto">
-          <div className="flex justify-between items-center">
-            <div>
-              <span className="text-sm text-secondary">Total</span>
-              <p className="text-2xl font-bold text-primary">
-                ${calculateTotal().toLocaleString()}
-              </p>
-            </div>
-            <Button
-              variant="danger"
-              onClick={handleReset}
-              className="hover:scale-105 transition-transform"
-            >
-              Reset
-            </Button>
-          </div>
-        </div>
+        <TotalSummary
+          total={calculateTotal()}
+          completed={completed}
+          onFinish={saveToHistory}
+          onReset={handleReset}
+        />
+
+        {/* History button */}
+        <Button
+          variant="secondary"
+          className="w-full"
+          onClick={() => setShowHistoryModal(true)}
+        >
+          View History
+        </Button>
       </div>
+
+      <HistoryModal
+        show={showHistoryModal}
+        onClose={() => setShowHistoryModal(false)}
+        history={history}
+        openCollapsible={openCollapsible}
+        toggleCollapsible={toggleCollapsible}
+      />
     </div>
   );
 }
